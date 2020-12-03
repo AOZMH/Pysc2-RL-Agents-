@@ -15,6 +15,7 @@ def run_loop(agents, env, max_frames=0, global_episodes=-1, do_eval=False):
     timesteps = env.reset()
     for a in agents:
       a.reset()
+    global_episodes += 1
     while True:
       num_frames += 1
       last_timesteps = timesteps
