@@ -13,6 +13,7 @@ _SCREEN_UNIT_TYPE = features.SCREEN_FEATURES.unit_type.index
 
 
 def preprocess_minimap(minimap):
+  return minimap
   layers = []
   assert minimap.shape[0] == len(features.MINIMAP_FEATURES)
   for i in range(len(features.MINIMAP_FEATURES)):
@@ -30,6 +31,7 @@ def preprocess_minimap(minimap):
 
 
 def preprocess_screen(screen):
+  return screen
   layers = []
   assert screen.shape[0] == len(features.SCREEN_FEATURES)
   for i in range(len(features.SCREEN_FEATURES)):
@@ -48,6 +50,7 @@ def preprocess_screen(screen):
 
 def minimap_channel():
   c = 0
+  return len(features.MINIMAP_FEATURES)
   for i in range(len(features.MINIMAP_FEATURES)):
     if i == _MINIMAP_PLAYER_ID:
       c += 1
@@ -60,6 +63,7 @@ def minimap_channel():
 
 def screen_channel():
   c = 0
+  return len(features.SCREEN_FEATURES)
   for i in range(len(features.SCREEN_FEATURES)):
     if i == _SCREEN_PLAYER_ID or i == _SCREEN_UNIT_TYPE:
       c += 1

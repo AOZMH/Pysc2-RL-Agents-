@@ -12,6 +12,17 @@ from agents.network import build_net
 import utils as U
 
 
+_PLAYER_SELF = features.PlayerRelative.SELF
+_PLAYER_NEUTRAL = features.PlayerRelative.NEUTRAL  # beacon/minerals
+_PLAYER_ENEMY = features.PlayerRelative.ENEMY
+
+
+def _xy_locs(mask):
+  """Mask should be a set of bools from comparison with a feature layer."""
+  y, x = mask.nonzero()
+  return list(zip(x, y))
+
+
 class A3CAgent(object):
   """An agent specifically for solving the mini-game maps."""
   def __init__(self, training, msize, ssize, name='A3C/A3CAgent'):
@@ -101,7 +112,24 @@ class A3CAgent(object):
       self.saver = tf.train.Saver(max_to_keep=100)
 
 
-  def step(self, obs):
+  def step(self, obs, global_steps):
+    cheater_rand = np.random.random()
+    
+    # 以 0.5 概率做 scripted_agent，类似于监督学习
+    if cheater_rand <= 0.5**(global_steps/50):
+      print("Teaching at episode {}.".format(global_steps))
+      FUNCTIONS = actions.FUNCTIONS
+      if FUNCTIONS.Move_screen.id in obs.observation.available_actions:
+        player_relative = obs.observation.feature_screen.player_relative
+        beacon = _xy_locs(player_relative == _PLAYER_NEUTRAL)
+        if not beacon:
+          return FUNCTIONS.no_op()
+        beacon_center = np.mean(beacon, axis=0).round()
+        return FUNCTIONS.Move_screen("now", beacon_center)
+      else:
+        return FUNCTIONS.select_army("select")
+    
+    # 否则按照eps-greedy step
     minimap = np.array(obs.observation['feature_minimap'], dtype=np.float32)
     minimap = np.expand_dims(U.preprocess_minimap(minimap), axis=0)
     screen = np.array(obs.observation['feature_screen'], dtype=np.float32)
@@ -181,9 +209,9 @@ class A3CAgent(object):
     rbs.reverse()
     for i, [obs, action, next_obs] in enumerate(rbs):
       minimap = np.array(obs.observation['feature_minimap'], dtype=np.float32)
-      print("Ix: {}, shape: {}".format(i, minimap.shape))
+      #print("Ix: {}, shape: {}".format(i, minimap.shape))
       minimap = np.expand_dims(U.preprocess_minimap(minimap), axis=0)
-      print("Ix: {}, shape: {}".format(i, minimap.shape))
+      #print("Ix: {}, shape: {}".format(i, minimap.shape))
       screen = np.array(obs.observation['feature_screen'], dtype=np.float32)
       screen = np.expand_dims(U.preprocess_screen(screen), axis=0)
       info = np.zeros([1, self.isize], dtype=np.float32)
@@ -193,7 +221,12 @@ class A3CAgent(object):
       screens.append(screen)
       infos.append(info)
 
-      reward = obs.reward
+      #print(i, obs.observation['score_cumulative'].score, obs.reward, end=' ')
+      if obs.observation['score_cumulative'].score > 22 and int(obs.reward) > 0:
+        reward = 3
+      else:
+        reward = obs.reward / 4
+      #print(reward)
       act_id = action.function
       act_args = action.arguments
 
@@ -208,7 +241,7 @@ class A3CAgent(object):
         if arg.name in ('screen', 'minimap', 'screen2'):
           ind = act_arg[1] * self.ssize + act_arg[0]
           valid_spatial_action[i] = 1
-          spatial_action_selected[i, ind] = 1
+          spatial_action_selected[i, int(ind)] = 1
 
     minimaps = np.concatenate(minimaps, axis=0)
     screens = np.concatenate(screens, axis=0)
@@ -236,4 +269,6 @@ class A3CAgent(object):
   def load_model(self, path):
     ckpt = tf.train.get_checkpoint_state(path)
     self.saver.restore(self.sess, ckpt.model_checkpoint_path)
+    print("Ckpts\n", ckpt)
+    print("Loading from {}.".format(ckpt.model_checkpoint_path))
     return int(ckpt.model_checkpoint_path.split('-')[-1])

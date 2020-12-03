@@ -60,7 +60,7 @@ flags.DEFINE_enum("action_space", None, sc2_env.ActionSpace._member_names_,  # p
                   "and rgb observations.")
 
 # Agent-stepping settings
-flags.DEFINE_integer("max_agent_steps", 60, "Total agent steps.")
+flags.DEFINE_integer("max_agent_steps", 240, "Total agent steps.")
 flags.DEFINE_integer("game_steps_per_episode", None, "Game steps per episode.")
 flags.DEFINE_integer("step_mul", 8, "Game steps per agent step.")
 flags.DEFINE_string("agent_name", None,
@@ -95,6 +95,7 @@ if not os.path.exists(SNAPSHOT):
 
 
 def run_thread(agent, players, map_name, visualize):
+  global COUNTER
   with sc2_env.SC2Env(
     map_name=map_name,
     players=players,
@@ -114,13 +115,12 @@ def run_thread(agent, players, map_name, visualize):
 
     # Only for a single player!
     replay_buffer = []
-    for recorder, is_done in run_loop([agent], env, MAX_AGENT_STEPS):
+    for recorder, is_done in run_loop([agent], env, MAX_AGENT_STEPS, COUNTER * FLAGS.max_agent_steps):
       if FLAGS.training:
         replay_buffer.append(recorder)
         if is_done:
           counter = 0
           with LOCK:
-            global COUNTER
             COUNTER += 1
             counter = COUNTER
           # Learning rate schedule

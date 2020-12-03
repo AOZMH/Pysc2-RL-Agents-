@@ -5,7 +5,7 @@ from __future__ import print_function
 import time
 
 
-def run_loop(agents, env, max_frames=0):
+def run_loop(agents, env, max_frames=0, global_steps=-1):
   """A run loop to have agents and an environment interact."""
   start_time = time.time()
 
@@ -18,7 +18,8 @@ def run_loop(agents, env, max_frames=0):
       while True:
         num_frames += 1
         last_timesteps = timesteps
-        actions = [agent.step(timestep) for agent, timestep in zip(agents, timesteps)]
+        global_steps += 1
+        actions = [agent.step(timestep, global_steps) for agent, timestep in zip(agents, timesteps)]
         timesteps = env.step(actions)
         # Only for a single player!
         is_done = (num_frames >= max_frames) or timesteps[0].last()
