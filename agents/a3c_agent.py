@@ -112,12 +112,13 @@ class A3CAgent(object):
       self.saver = tf.train.Saver(max_to_keep=100)
 
 
-  def step(self, obs, global_steps):
+  def step(self, obs, num_frames, global_episodes=-1, do_eval=False):
     cheater_rand = np.random.random()
+    #print(num_frames, global_episodes)
     
     # 以 0.5 概率做 scripted_agent，类似于监督学习
-    if cheater_rand <= 0.5**(global_steps/50):
-      print("Teaching at episode {}.".format(global_steps))
+    if cheater_rand <= 0.5**(global_episodes/50) and not do_eval:
+      print("Teaching at frame No. {}.".format(num_frames))
       FUNCTIONS = actions.FUNCTIONS
       if FUNCTIONS.Move_screen.id in obs.observation.available_actions:
         player_relative = obs.observation.feature_screen.player_relative
@@ -157,9 +158,9 @@ class A3CAgent(object):
       print(actions.FUNCTIONS[act_id].name, target)
 
     # Epsilon greedy exploration
-    if self.training and np.random.rand() < self.epsilon[0]:
+    if self.training and np.random.rand() < self.epsilon[0] and not do_eval:
       act_id = np.random.choice(valid_actions)
-    if self.training and np.random.rand() < self.epsilon[1]:
+    if self.training and np.random.rand() < self.epsilon[1] and not do_eval:
       dy = np.random.randint(-4, 5)
       target[0] = int(max(0, min(self.ssize-1, target[0]+dy)))
       dx = np.random.randint(-4, 5)
@@ -222,10 +223,11 @@ class A3CAgent(object):
       infos.append(info)
 
       #print(i, obs.observation['score_cumulative'].score, obs.reward, end=' ')
-      if obs.observation['score_cumulative'].score > 22 and int(obs.reward) > 0:
-        reward = 3
-      else:
-        reward = obs.reward / 4
+      #if obs.observation['score_cumulative'].score > 22 and int(obs.reward) > 0:
+      #  reward = 3
+      #else:
+      #  reward = obs.reward
+      reward = obs.reward
       #print(reward)
       act_id = action.function
       act_args = action.arguments

@@ -36,6 +36,7 @@ flags.DEFINE_integer("snapshot_step", int(1e3), "Step for snapshot.")
 flags.DEFINE_string("snapshot_path", "./snapshot/", "Path for snapshot.")
 flags.DEFINE_string("log_path", "./log/", "Path for log.")
 flags.DEFINE_string("device", "0", "Device for training.")
+flags.DEFINE_integer("evaluate_every", 20, "Evaluate every how many training episodes.")
 
 # Agent structure
 flags.DEFINE_string("agent", "agents.a3c_agent.A3CAgent", "Which agent to run.")
@@ -94,6 +95,83 @@ if not os.path.exists(SNAPSHOT):
   os.makedirs(SNAPSHOT)
 
 
+def evaluate_k_episodes_and_avg(agent, env, k=5):
+  # Evaluate multiple episodes and compute scores
+  avg_score, max_score, min_score = 0, -1, 100
+  print("Evaluating...")
+  for epi in range(k):
+    print("Running episode {}/{}.".format(epi, k))
+    for recorder, is_done in run_loop([agent], env, MAX_AGENT_STEPS, do_eval=True):
+      if not is_done:
+        continue
+      obs = recorder[0].observation
+      score = obs["score_cumulative"].score
+      avg_score += score
+      max_score = max(max_score, score)
+      min_score = min(min_score, score)
+      break
+  
+  avg_score /= k
+  print("Max/Min/Avg score: {} / {} / {}".format(max_score, min_score, avg_score))
+  return avg_score
+
+
+def train_one_episode(agent, env):
+  # Step & update weights in one episode
+  # Only for a single player!
+  global COUNTER
+  replay_buffer = []
+  for recorder, is_done in run_loop([agent], env, MAX_AGENT_STEPS, COUNTER):
+    replay_buffer.append(recorder)
+    if not is_done:
+      continue
+    counter = 0
+    with LOCK:
+      COUNTER += 1
+      counter = COUNTER
+    # Learning rate schedule
+    learning_rate = FLAGS.learning_rate * (1 - 0.9 * counter / FLAGS.max_steps)
+    agent.update(replay_buffer, FLAGS.discount, learning_rate, counter)
+    break
+
+
+def run_train_and_eval(agent, players, map_name, visualize):
+  global COUNTER
+  with sc2_env.SC2Env(
+    map_name=map_name,
+    players=players,
+    step_mul=FLAGS.step_mul,
+    #screen_size_px=(FLAGS.screen_resolution, FLAGS.screen_resolution),
+    #minimap_size_px=(FLAGS.minimap_resolution, FLAGS.minimap_resolution),
+    agent_interface_format=sc2_env.parse_agent_interface_format(
+          feature_screen=FLAGS.feature_screen_size,
+          feature_minimap=FLAGS.feature_minimap_size,
+          rgb_screen=FLAGS.rgb_screen_size,
+          rgb_minimap=FLAGS.rgb_minimap_size,
+          action_space=FLAGS.action_space),
+    game_steps_per_episode=FLAGS.game_steps_per_episode,
+    visualize=visualize) as env:
+
+    env = available_actions_printer.AvailableActionsPrinter(env)
+
+    if not FLAGS.training:
+      evaluate_k_episodes_and_avg(agent, env, k=10)
+      exit(0)
+
+    max_avg_score = 0.
+    while True:
+      train_one_episode(agent, env)
+      if COUNTER % FLAGS.evaluate_every == 1 and COUNTER >= 50:
+        avg_sc = evaluate_k_episodes_and_avg(agent, env, k=6)
+        if avg_sc > max_avg_score:
+          max_avg_score = avg_sc
+          agent.save_model(SNAPSHOT, COUNTER)
+      print("Current max average score: {}".format(max_avg_score))
+    
+    if FLAGS.save_replay:
+      env.save_replay(agent.name)
+
+
 def run_thread(agent, players, map_name, visualize):
   global COUNTER
   with sc2_env.SC2Env(
@@ -112,10 +190,12 @@ def run_thread(agent, players, map_name, visualize):
     visualize=visualize) as env:
     
     env = available_actions_printer.AvailableActionsPrinter(env)
+    #evaluate_k_episodes_and_avg(agent, env, k=10)
+    #exit(0)
 
     # Only for a single player!
     replay_buffer = []
-    for recorder, is_done in run_loop([agent], env, MAX_AGENT_STEPS, COUNTER * FLAGS.max_agent_steps):
+    for recorder, is_done in run_loop([agent], env, MAX_AGENT_STEPS, COUNTER):
       if FLAGS.training:
         replay_buffer.append(recorder)
         if is_done:
@@ -177,15 +257,17 @@ def _main(unused_argv):
     COUNTER = agent.load_model(SNAPSHOT)
 
   # Run threads
+  # wrapper_func = run_train_and_eval
+  wrapper_func = run_thread
   threads = []
   for i in range(PARALLEL - 1):
-    t = threading.Thread(target=run_thread, args=(agents[i], players, FLAGS.map, False))
+    t = threading.Thread(target=wrapper_func, args=(agents[i], players, FLAGS.map, False))
     threads.append(t)
     t.daemon = True
     t.start()
     time.sleep(5)
 
-  run_thread(agents[-1], players, FLAGS.map, FLAGS.render)
+  wrapper_func(agents[-1], players, FLAGS.map, FLAGS.render)
 
   for t in threads:
     t.join()
