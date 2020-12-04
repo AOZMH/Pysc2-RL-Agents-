@@ -89,19 +89,23 @@ else:
 
 LOG = FLAGS.log_path+FLAGS.map+'/'+FLAGS.net
 SNAPSHOT = FLAGS.snapshot_path+FLAGS.map+'/'+FLAGS.net
+SCORE_LOG = FLAGS.log_path+'score_log/'+FLAGS.map+'/'+FLAGS.net
 if not os.path.exists(LOG):
   os.makedirs(LOG)
 if not os.path.exists(SNAPSHOT):
   os.makedirs(SNAPSHOT)
+if not os.path.exists(SCORE_LOG):
+  os.makedirs(SCORE_LOG)
 
 
-def evaluate_k_episodes_and_avg(agent, env, k=5):
+def evaluate_k_episodes_and_avg(agent, env, k=5, write_results=False):
   # Evaluate multiple episodes and compute scores
+  agent.training = False
   avg_score, max_score, min_score = 0, -1, 100
   print("Evaluating...")
   for epi in range(k):
     print("Running episode {}/{}.".format(epi, k))
-    for recorder, is_done in run_loop([agent], env, MAX_AGENT_STEPS, do_eval=True):
+    for recorder, is_done in run_loop([agent], env, MAX_AGENT_STEPS):
       if not is_done:
         continue
       obs = recorder[0].observation
@@ -113,6 +117,14 @@ def evaluate_k_episodes_and_avg(agent, env, k=5):
   
   avg_score /= k
   print("Max/Min/Avg score: {} / {} / {}".format(max_score, min_score, avg_score))
+  agent.training = True
+
+  # write results to score_log file for visualization
+  if write_results:
+    log_fn = SCORE_LOG + '/log.dat'
+    with open(log_fn, 'a') as fout:
+      fout.write('\t'.join(map(str, [COUNTER, max_score, min_score, avg_score])) + '\n')
+
   return avg_score
 
 
@@ -162,7 +174,7 @@ def run_train_and_eval(agent, players, map_name, visualize):
     while True:
       train_one_episode(agent, env)
       if COUNTER % FLAGS.evaluate_every == 1 and COUNTER >= 50:
-        avg_sc = evaluate_k_episodes_and_avg(agent, env, k=6)
+        avg_sc = evaluate_k_episodes_and_avg(agent, env, k=6, write_results=True)
         if avg_sc > max_avg_score:
           max_avg_score = avg_sc
           agent.save_model(SNAPSHOT, COUNTER)
@@ -190,8 +202,11 @@ def run_thread(agent, players, map_name, visualize):
     visualize=visualize) as env:
     
     env = available_actions_printer.AvailableActionsPrinter(env)
-    #evaluate_k_episodes_and_avg(agent, env, k=10)
-    #exit(0)
+    max_avg_score = 0.
+    # pure evaluation
+    if not FLAGS.training:
+      evaluate_k_episodes_and_avg(agent, env, k=10)
+      exit(0)
 
     # Only for a single player!
     replay_buffer = []
@@ -211,6 +226,15 @@ def run_thread(agent, players, map_name, visualize):
             agent.save_model(SNAPSHOT, counter)
           if counter >= FLAGS.max_steps:
             break
+          
+          # eval with interval
+          if COUNTER % FLAGS.evaluate_every == 1 and COUNTER >= 0:
+            avg_sc = evaluate_k_episodes_and_avg(agent, env, k=6, write_results=True)
+            if avg_sc > max_avg_score:
+              max_avg_score = avg_sc
+              agent.save_model(SNAPSHOT, COUNTER)
+          print("Current max average score: {}".format(max_avg_score))
+            
       elif is_done:
         obs = recorder[-1].observation
         score = obs["score_cumulative"][0]

@@ -7,6 +7,7 @@ import numpy as np
 import tensorflow as tf
 from pysc2.lib import actions
 from pysc2.lib import features
+from absl import flags
 
 from agents.network import build_net
 import utils as U
@@ -15,6 +16,8 @@ import utils as U
 _PLAYER_SELF = features.PlayerRelative.SELF
 _PLAYER_NEUTRAL = features.PlayerRelative.NEUTRAL  # beacon/minerals
 _PLAYER_ENEMY = features.PlayerRelative.ENEMY
+
+FLAGS = flags.FLAGS
 
 
 def _xy_locs(mask):
@@ -112,12 +115,12 @@ class A3CAgent(object):
       self.saver = tf.train.Saver(max_to_keep=100)
 
 
-  def step(self, obs, num_frames, global_episodes=-1, do_eval=False):
+  def step(self, obs, num_frames, global_episodes=-1):
     cheater_rand = np.random.random()
     #print(num_frames, global_episodes)
     
     # 以 0.5 概率做 scripted_agent，类似于监督学习
-    if cheater_rand <= 0.5**(global_episodes/50) and not do_eval:
+    if cheater_rand <= 0.5**(global_episodes/50) and self.training:
       print("Teaching at frame No. {}.".format(num_frames))
       FUNCTIONS = actions.FUNCTIONS
       if FUNCTIONS.Move_screen.id in obs.observation.available_actions:
@@ -154,13 +157,19 @@ class A3CAgent(object):
     target = np.argmax(spatial_action)
     target = [int(target // self.ssize), int(target % self.ssize)]
 
+    # 根据MoveToBeacon训练弱点加了一点人工规则
+    # 模型习惯与走右上角 (x,y最小的点)，有可能在少数情况下出现卡死，因此略微增加x,y
+    if FLAGS.map == 'MoveToBeacon' and not self.training:
+      target[0] += 1
+      target[1] += 1
+
     if False:
       print(actions.FUNCTIONS[act_id].name, target)
 
     # Epsilon greedy exploration
-    if self.training and np.random.rand() < self.epsilon[0] and not do_eval:
+    if self.training and np.random.rand() < self.epsilon[0]:
       act_id = np.random.choice(valid_actions)
-    if self.training and np.random.rand() < self.epsilon[1] and not do_eval:
+    if self.training and np.random.rand() < self.epsilon[1]:
       dy = np.random.randint(-4, 5)
       target[0] = int(max(0, min(self.ssize-1, target[0]+dy)))
       dx = np.random.randint(-4, 5)
@@ -261,6 +270,7 @@ class A3CAgent(object):
             self.non_spatial_action_selected: non_spatial_action_selected,
             self.learning_rate: lr}
     _, summary = self.sess.run([self.train_op, self.summary_op], feed_dict=feed)
+    
     self.summary_writer.add_summary(summary, cter)
 
 
