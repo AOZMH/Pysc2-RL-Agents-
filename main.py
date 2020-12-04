@@ -61,7 +61,7 @@ flags.DEFINE_enum("action_space", None, sc2_env.ActionSpace._member_names_,  # p
                   "and rgb observations.")
 
 # Agent-stepping settings
-flags.DEFINE_integer("max_agent_steps", 240, "Total agent steps.")
+flags.DEFINE_integer("max_agent_steps", 3200, "Total agent steps.")
 flags.DEFINE_integer("game_steps_per_episode", None, "Game steps per episode.")
 flags.DEFINE_integer("step_mul", 8, "Game steps per agent step.")
 flags.DEFINE_string("agent_name", None,

@@ -120,7 +120,7 @@ class A3CAgent(object):
     #print(num_frames, global_episodes)
     
     # 以 0.5 概率做 scripted_agent，类似于监督学习
-    if cheater_rand <= 0.5**(global_episodes/50) and self.training:
+    if FLAGS.map == 'MoveToBeacon' and cheater_rand <= 0.5**(global_episodes/50) and self.training:
       print("Teaching at frame No. {}.".format(num_frames))
       FUNCTIONS = actions.FUNCTIONS
       if FUNCTIONS.Move_screen.id in obs.observation.available_actions:
