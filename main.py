@@ -205,7 +205,7 @@ def run_thread(agent, players, map_name, visualize):
     max_avg_score = 0.
     # pure evaluation
     if not FLAGS.training:
-      evaluate_k_episodes_and_avg(agent, env, k=10)
+      evaluate_k_episodes_and_avg(agent, env, k=20)
       exit(0)
 
     # Only for a single player!
