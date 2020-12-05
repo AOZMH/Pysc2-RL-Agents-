@@ -19,8 +19,8 @@ _PLAYER_ENEMY = features.PlayerRelative.ENEMY
 
 FLAGS = flags.FLAGS
 
-cnt = 0
-selectIdle_flag = 0
+script_step_cnt = 0
+train_scv_already = False
 buildSupply_flag = -2
 Supplydx,Supplydy = 16,36
 
@@ -121,27 +121,28 @@ class A3CAgent(object):
 
     
   def TeacherCollectMineralsAndGas(self, obs):
-    global cnt, selectIdle_flag, Supplydx, Supplydy, buildSupply_flag
-    cnt = cnt + 1
-    print(obs.observation['available_actions'],cnt,selectIdle_flag,buildSupply_flag)
+    global script_step_cnt, Supplydx, Supplydy, buildSupply_flag, train_scv_already
+    script_step_cnt = script_step_cnt + 1
+    #print(obs.observation['available_actions'],script_step_cnt,buildSupply_flag)
     #### 最开始选中全部scv
-    if cnt % 840 == 1:
+    if script_step_cnt == 1:
         ## 初始化
         buildSupply_flag = -2
         Supplydx,Supplydy = 16,36
+        train_scv_already = False
         return actions.FUNCTIONS.select_rect("select", [0, 0], [63, 63])
 
     #### 让全部scv去采矿
-    if cnt % 840 == 2:
-        return actions.FUNCTIONS.Harvest_Gather_screen("now",[8,12])
+    if script_step_cnt == 2:
+        if actions.FUNCTIONS.Harvest_Gather_screen.id in obs.observation.available_actions:
+            return actions.FUNCTIONS.Harvest_Gather_screen("now",[8,12])
+        else:
+            script_step_cnt = script_step_cnt - 1
+            return actions.FUNCTIONS.select_rect("select", [0, 0], [63, 63])
 
-    ### 如果有空闲scv并且上一轮已经将它选中
-    if actions.FUNCTIONS.select_idle_worker.id in obs.observation.available_actions and cnt != selectIdle_flag + 1:
-        selectIdle_flag = cnt
-        return actions.FUNCTIONS.select_idle_worker("select")
-
-    ### 上一轮已经将空闲scv选中
-    if cnt == selectIdle_flag + 1:
+    ### 上一轮已经将空闲scv选中并且指挥中心已经开始训练scv
+    if actions.FUNCTIONS.Build_SupplyDepot_screen.id in obs.observation.available_actions and train_scv_already:
+        train_scv_already = False
         ### 建造补给站
         if  buildSupply_flag % 8 == 0 and actions.FUNCTIONS.Build_SupplyDepot_screen.id in obs.observation.available_actions:
             buildSupply_flag = buildSupply_flag + 1
@@ -150,10 +151,15 @@ class A3CAgent(object):
         ### 进行采矿
         else:
             ### 确保有个空闲的scv可以建造补给站
-            if actions.FUNCTIONS.Build_SupplyDepot_screen.id not in obs.observation.available_actions and buildSupply_flag == 0:
-                return actions.FUNCTIONS.no_op("rest")
+            if actions.FUNCTIONS.Build_SupplyDepot_screen.id not in obs.observation.available_actions and buildSupply_flag % 8 == 0:
+                return actions.FUNCTIONS.select_point("select",[26,28])
             buildSupply_flag = buildSupply_flag + 1
             return actions.FUNCTIONS.Harvest_Gather_screen("now", [8, 12])
+
+    ### 如果有空闲scv并且上一轮还没有选中
+    if actions.FUNCTIONS.select_idle_worker.id in obs.observation.available_actions:
+        train_scv_already = True
+        return actions.FUNCTIONS.select_idle_worker("select")
 
     ### 没有空闲scv，并且可以制造新的scv
     if actions.FUNCTIONS.Train_SCV_quick.id in obs.observation.available_actions:
@@ -164,6 +170,9 @@ class A3CAgent(object):
 
 
   def step(self, obs, num_frames, global_episodes=-1):
+    global script_step_cnt
+    if num_frames == 0:
+      script_step_cnt = 0
     cheater_rand = np.random.random()
     #print(num_frames, global_episodes)
     
