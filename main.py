@@ -229,7 +229,7 @@ def run_thread(agent, players, map_name, visualize):
           
           # eval with interval
           if COUNTER % FLAGS.evaluate_every == 1 and COUNTER >= 0:
-            avg_sc = evaluate_k_episodes_and_avg(agent, env, k=6, write_results=True)
+            avg_sc = evaluate_k_episodes_and_avg(agent, env, k=10, write_results=True)
             if avg_sc > max_avg_score:
               max_avg_score = avg_sc
               agent.save_model(SNAPSHOT, COUNTER)
