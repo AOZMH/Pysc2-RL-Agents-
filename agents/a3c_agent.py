@@ -176,7 +176,7 @@ class A3CAgent(object):
 
   def step(self, obs, num_frames, global_episodes=-1):
     global script_step_cnt
-    if num_frames == 0:
+    if num_frames == 1:
       script_step_cnt = 0
     cheater_rand = np.random.random()
     #print(num_frames, global_episodes)
