@@ -19,6 +19,11 @@ _PLAYER_ENEMY = features.PlayerRelative.ENEMY
 
 FLAGS = flags.FLAGS
 
+cnt = 0
+selectIdle_flag = 0
+buildSupply_flag = -2
+Supplydx,Supplydy = 16,36
+
 
 def _xy_locs(mask):
   """Mask should be a set of bools from comparison with a feature layer."""
@@ -114,13 +119,58 @@ class A3CAgent(object):
 
       self.saver = tf.train.Saver(max_to_keep=100)
 
+    
+  def TeacherCollectMineralsAndGas(self, obs):
+    global cnt, selectIdle_flag, Supplydx, Supplydy, buildSupply_flag
+    cnt = cnt + 1
+    print(obs.observation['available_actions'],cnt,selectIdle_flag,buildSupply_flag)
+    #### 最开始选中全部scv
+    if cnt % 840 == 1:
+        ## 初始化
+        buildSupply_flag = -2
+        Supplydx,Supplydy = 16,36
+        return actions.FUNCTIONS.select_rect("select", [0, 0], [63, 63])
+
+    #### 让全部scv去采矿
+    if cnt % 840 == 2:
+        return actions.FUNCTIONS.Harvest_Gather_screen("now",[8,12])
+
+    ### 如果有空闲scv并且上一轮已经将它选中
+    if actions.FUNCTIONS.select_idle_worker.id in obs.observation.available_actions and cnt != selectIdle_flag + 1:
+        selectIdle_flag = cnt
+        return actions.FUNCTIONS.select_idle_worker("select")
+
+    ### 上一轮已经将空闲scv选中
+    if cnt == selectIdle_flag + 1:
+        ### 建造补给站
+        if  buildSupply_flag % 8 == 0 and actions.FUNCTIONS.Build_SupplyDepot_screen.id in obs.observation.available_actions:
+            buildSupply_flag = buildSupply_flag + 1
+            Supplydx = Supplydx + 5
+            return actions.FUNCTIONS.Build_SupplyDepot_screen("now", [Supplydx, Supplydy])
+        ### 进行采矿
+        else:
+            ### 确保有个空闲的scv可以建造补给站
+            if actions.FUNCTIONS.Build_SupplyDepot_screen.id not in obs.observation.available_actions and buildSupply_flag == 0:
+                return actions.FUNCTIONS.no_op("rest")
+            buildSupply_flag = buildSupply_flag + 1
+            return actions.FUNCTIONS.Harvest_Gather_screen("now", [8, 12])
+
+    ### 没有空闲scv，并且可以制造新的scv
+    if actions.FUNCTIONS.Train_SCV_quick.id in obs.observation.available_actions:
+        return actions.FUNCTIONS.Train_SCV_quick("now")
+
+    ### 默认选中指挥中心
+    return actions.FUNCTIONS.select_point("select",[26,28])
+
 
   def step(self, obs, num_frames, global_episodes=-1):
     cheater_rand = np.random.random()
     #print(num_frames, global_episodes)
     
     # 以 0.5 概率做 scripted_agent，类似于监督学习
-    if FLAGS.map == 'MoveToBeacon' and cheater_rand <= 0.5**(global_episodes/50) and self.training:
+    if FLAGS.map == 'MoveToBeacon' and FLAGS.teaching \
+      and cheater_rand <= 0.5**(global_episodes/50) and self.training:
+
       print("Teaching at frame No. {}.".format(num_frames))
       FUNCTIONS = actions.FUNCTIONS
       if FUNCTIONS.Move_screen.id in obs.observation.available_actions:
@@ -132,6 +182,13 @@ class A3CAgent(object):
         return FUNCTIONS.Move_screen("now", beacon_center)
       else:
         return FUNCTIONS.select_army("select")
+    
+    # CollectMineralsAndGas 任务的监督脚本
+    if FLAGS.map == 'CollectMineralsAndGas' and FLAGS.teaching \
+      and cheater_rand <= 0.5**(global_episodes/50) and self.training:
+
+      print("CMAG teaching at frame No. {}.".format(num_frames))
+      return self.TeacherCollectMineralsAndGas(obs)
     
     # 否则按照eps-greedy step
     minimap = np.array(obs.observation['feature_minimap'], dtype=np.float32)

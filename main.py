@@ -28,6 +28,7 @@ FLAGS = flags.FLAGS
 
 # About training, sc2 independent
 flags.DEFINE_bool("training", True, "Whether to train agents.")
+flags.DEFINE_bool("teaching", False, "Use teaching scripts to training agent.")
 flags.DEFINE_bool("continuation", False, "Continuously training.")
 flags.DEFINE_float("learning_rate", 5e-4, "Learning rate for training.")
 flags.DEFINE_float("discount", 0.99, "Discount rate for future rewards.")
