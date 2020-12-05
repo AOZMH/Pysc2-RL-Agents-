@@ -191,18 +191,18 @@ class A3CAgent(object):
         player_relative = obs.observation.feature_screen.player_relative
         beacon = _xy_locs(player_relative == _PLAYER_NEUTRAL)
         if not beacon:
-          return FUNCTIONS.no_op()
+          return FUNCTIONS.no_op(), True
         beacon_center = np.mean(beacon, axis=0).round()
-        return FUNCTIONS.Move_screen("now", beacon_center)
+        return FUNCTIONS.Move_screen("now", beacon_center), True
       else:
-        return FUNCTIONS.select_army("select")
+        return FUNCTIONS.select_army("select"), True
     
     # CollectMineralsAndGas 任务的监督脚本
     if FLAGS.map == 'CollectMineralsAndGas' and FLAGS.teaching \
       and cheater_rand <= 0.5**(global_episodes/50) and self.training:
 
-      print("CMAG teaching at frame No. {}.".format(num_frames))
-      return self.TeacherCollectMineralsAndGas(obs)
+      #print("CMAG teaching at frame No. {}.".format(num_frames))
+      return self.TeacherCollectMineralsAndGas(obs), True
     
     # 否则按照eps-greedy step
     minimap = np.array(obs.observation['feature_minimap'], dtype=np.float32)
@@ -253,7 +253,7 @@ class A3CAgent(object):
         act_args.append([target[1], target[0]])
       else:
         act_args.append([0])  # TODO: Be careful
-    return actions.FunctionCall(act_id, act_args)
+    return actions.FunctionCall(act_id, act_args), False
 
 
   def update(self, rbs, disc, lr, cter):
