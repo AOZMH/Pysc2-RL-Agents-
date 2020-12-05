@@ -125,7 +125,7 @@ class A3CAgent(object):
     script_step_cnt = script_step_cnt + 1
     #print(obs.observation['available_actions'],script_step_cnt,buildSupply_flag)
     #### 最开始选中全部scv
-    if script_step_cnt == 1:
+    if script_step_cnt == 1 and actions.FUNCTIONS.select_rect.id in obs.observation.available_actions:
         ## 初始化
         buildSupply_flag = -2
         Supplydx,Supplydy = 16,36
@@ -138,10 +138,11 @@ class A3CAgent(object):
             return actions.FUNCTIONS.Harvest_Gather_screen("now",[8,12])
         else:
             script_step_cnt = script_step_cnt - 1
-            return actions.FUNCTIONS.select_rect("select", [0, 0], [63, 63])
+            if actions.FUNCTIONS.select_rect.id in obs.observation.available_actions:
+                return actions.FUNCTIONS.select_rect("select", [0, 0], [63, 63])
 
     ### 上一轮已经将空闲scv选中并且指挥中心已经开始训练scv
-    if actions.FUNCTIONS.Build_SupplyDepot_screen.id in obs.observation.available_actions and train_scv_already:
+    if actions.FUNCTIONS.Harvest_Gather_screen.id in obs.observation.available_actions and train_scv_already:
         train_scv_already = False
         ### 建造补给站
         if  buildSupply_flag % 8 == 0 and actions.FUNCTIONS.Build_SupplyDepot_screen.id in obs.observation.available_actions:
@@ -154,7 +155,8 @@ class A3CAgent(object):
             if actions.FUNCTIONS.Build_SupplyDepot_screen.id not in obs.observation.available_actions and buildSupply_flag % 8 == 0:
                 return actions.FUNCTIONS.select_point("select",[26,28])
             buildSupply_flag = buildSupply_flag + 1
-            return actions.FUNCTIONS.Harvest_Gather_screen("now", [8, 12])
+            if actions.FUNCTIONS.Harvest_Gather_screen.id in obs.observation.available_actions:
+                return actions.FUNCTIONS.Harvest_Gather_screen("now", [8, 12])
 
     ### 如果有空闲scv并且上一轮还没有选中
     if actions.FUNCTIONS.select_idle_worker.id in obs.observation.available_actions:
@@ -166,7 +168,10 @@ class A3CAgent(object):
         return actions.FUNCTIONS.Train_SCV_quick("now")
 
     ### 默认选中指挥中心
-    return actions.FUNCTIONS.select_point("select",[26,28])
+    if actions.FUNCTIONS.select_point.id in obs.observation.available_actions:
+        return actions.FUNCTIONS.select_point("select",[26,28])
+
+    return actions.FUNCTIONS.no_op("reset")
 
 
   def step(self, obs, num_frames, global_episodes=-1):
