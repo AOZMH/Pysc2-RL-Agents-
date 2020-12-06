@@ -101,7 +101,7 @@ if not os.path.exists(SCORE_LOG):
 
 def evaluate_k_episodes_and_avg(agent, env, k=5, write_results=False):
   # Evaluate multiple episodes and compute scores
-  agent.training = False
+  agent.training = True
   avg_score, max_score, min_score = 0, -1, 100
   print("Evaluating...")
   for epi in range(k):

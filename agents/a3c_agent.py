@@ -23,6 +23,9 @@ script_step_cnt = 0
 train_scv_already = False
 buildSupply_flag = -2
 Supplydx,Supplydy = 16,36
+BuildCommand = True
+mineral_choose = 0
+useful_action_sets = {2,3,6,91,264,490}
 
 
 def _xy_locs(mask):
@@ -224,7 +227,14 @@ class A3CAgent(object):
     # Select an action and a spatial target
     non_spatial_action = non_spatial_action.ravel()
     spatial_action = spatial_action.ravel()
-    valid_actions = obs.observation['available_actions']
+    
+    # 针对CollectMineralsAndGas限制动作空间
+    if FLAGS.map == 'CollectMineralsAndGas':
+      valid_actions = np.array(list(set(obs.observation['available_actions']) & useful_action_sets))
+      #valid_actions = obs.observation['available_actions']
+    else:
+      valid_actions = obs.observation['available_actions']
+    
     act_id = valid_actions[np.argmax(non_spatial_action[valid_actions])]
     target = np.argmax(spatial_action)
     target = [int(target // self.ssize), int(target % self.ssize)]
@@ -254,6 +264,10 @@ class A3CAgent(object):
         act_args.append([target[1], target[0]])
       else:
         act_args.append([0])  # TODO: Be careful
+    
+    if FLAGS.map == 'CollectMineralsAndGas' and act_id == 3:
+      #print("select all")
+      act_args = [[0], [0, 0], [63, 63]]
     return actions.FunctionCall(act_id, act_args), False
 
 
