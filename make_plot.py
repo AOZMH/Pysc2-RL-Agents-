@@ -61,7 +61,7 @@ def make_plot(log_dir, poly_rank):
         handles = [max_p, min_p, avg_p],
         labels = ['Max score', 'Min score', 'Mean score'],
     )
-    plt.ylim(0,52)
+    #plt.ylim(0,52)
     plt.show()
 
 
@@ -93,7 +93,8 @@ def compare(poly_rank=40):
 
 if __name__ == "__main__":
     # log_dir = './log/score_log/MoveToBeacon/fcn/log_teaching.dat'
-    log_dir = './log/score_log/FindAndDefeatZerglings/fcn/log_6_test.dat'
+    # log_dir = './log/score_log/FindAndDefeatZerglings/fcn/log_6_test.dat'
+    log_dir = './log/score_log/CollectMineralsAndGas/fcn/log.dat'
     poly_rank = 50
     make_plot(log_dir, poly_rank)
     #compare(poly_rank=50)
