@@ -5,9 +5,10 @@ sys.path.append(r'C:\Users\dell\Anaconda3\Lib\site-packages')
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import interpolate
+from scipy.signal import convolve
 
 
-def make_plot(log_dir):
+def process_data(log_dir, poly_rank=40):
 
     # x, y points to be interpolated
     xs, max_scs, min_scs, avg_scs = [],[],[],[]
@@ -34,17 +35,65 @@ def make_plot(log_dir):
     min_new = func_min(x_new)
     avg_new = func_avg(x_new)
 
-    # draw interpolated plots
-    plt.plot(x_new, max_new, color='red', linewidth=2.0, linestyle='--')
-    plt.plot(x_new, min_new, color='blue', linewidth=3.0, linestyle='-.')
-    plt.plot(x_new, avg_new, color='orange', linewidth=3.0, linestyle='-')
+    # approximation
+    ft1 = np.polyfit(x_new, max_new, poly_rank)
+    max_new = np.polyval(ft1, x_new)
+    ft2 = np.polyfit(x_new, min_new, poly_rank)
+    min_new = np.polyval(ft2, x_new)
+    ft3 = np.polyfit(x_new, avg_new, poly_rank)
+    avg_new = np.polyval(ft3, x_new)
 
-    plt.xlabel("Training episode")
+    return x_new, max_new, min_new, avg_new
+
+
+def make_plot(log_dir, poly_rank):
+
+    x_new, max_new, min_new, avg_new = process_data(log_dir, poly_rank)
+    # draw processed plots
+    max_p, = plt.plot(x_new, max_new, color='springgreen', linewidth=2.0, linestyle='-')
+    min_p, = plt.plot(x_new, min_new, color='lightseagreen', linewidth=2.0, linestyle='-')
+    avg_p, = plt.plot(x_new, avg_new, color='deepskyblue', linewidth=2.0, linestyle='-')
+
+    plt.xlabel("Training episodes")
     plt.ylabel("Score")
     plt.title("Score flunctuation throughout training episodes")
+    plt.legend(
+        handles = [max_p, min_p, avg_p],
+        labels = ['Max score', 'Min score', 'Mean score'],
+    )
+    plt.ylim(0,52)
+    plt.show()
+
+
+def compare(poly_rank=40):
+    dir1 = './log/score_log/MoveToBeacon/fcn/log_teaching.dat'
+    dir2 = './log/score_log/MoveToBeacon/fcn/log_no_teaching.dat'
+    x_new, max_new, min_new, avg_new = process_data(dir1, poly_rank)
+    x_new_no, max_new_no, min_new_no, avg_new_no = process_data(dir2, poly_rank)
+    max_range = 7700
+    x_new_no, max_new_no, min_new_no, avg_new_no = x_new_no[:max_range], max_new_no[:max_range], min_new_no[:max_range], avg_new_no[:max_range]
+    max_new, min_new, avg_new = max_new[:len(x_new_no)], min_new[:len(x_new_no)], avg_new[:len(x_new_no)]
+
+    # draw processed plots
+    max_teach, = plt.plot(x_new_no, max_new, color='sandybrown', linewidth=2.0, linestyle='-.')
+    avg_teach, = plt.plot(x_new_no, avg_new, color='orange', linewidth=2.0, linestyle='-')
+    max_no, = plt.plot(x_new_no, max_new_no, color='royalblue', linewidth=2.0, linestyle='-.')
+    avg_no, = plt.plot(x_new_no, avg_new_no, color='cornflowerblue', linewidth=2.0, linestyle='-')
+
+    plt.xlabel("Training episodes")
+    plt.ylabel("Score")
+    plt.title("Score flunctuation with & without script teaching")
+    plt.legend(
+        handles = [max_teach, avg_teach, max_no, avg_no],
+        labels = ['Max with teaching', 'Mean with teaching', 'Max w/o teaching', 'Mean w/o teaching'],
+    )
     plt.ylim(0,35)
     plt.show()
     
 
 if __name__ == "__main__":
-    make_plot(log_dir = './log/score_log/MoveToBeacon/fcn/log.dat')
+    # log_dir = './log/score_log/MoveToBeacon/fcn/log_teaching.dat'
+    log_dir = './log/score_log/FindAndDefeatZerglings/fcn/log_6_test.dat'
+    poly_rank = 50
+    make_plot(log_dir, poly_rank)
+    #compare(poly_rank=50)

@@ -47,6 +47,7 @@ class A3CAgent(object):
   def setup(self, sess, summary_writer):
     self.sess = sess
     self.summary_writer = summary_writer
+    self.summary_writer.add_graph(sess.graph)
 
 
   def initialize(self):
