@@ -1,6 +1,7 @@
 # 星际争霸作业 MoveToBeacon 及 FindAndDefeatZerglings 实现
 
 Github 仓库：https://github.com/AOZMH/Pysc2-RL-Agents-
+参考：https://github.com/xhujoy/pysc2-agents
 
 ## MoveToBeacon 复现
 
@@ -34,4 +35,4 @@ Max/Min/Avg score: 30 / 22 / 25.3
 
 
 ## 训练好的模型下载
-将 https://disk.pku.edu.cn:443/link/516E3EF7498129ECD0E610ED35407B06 中的**snapshot**文件夹替换本目录下的该文件夹，即可下载已有的模型参数。
+将 https://disk.pku.edu.cn:443/link/516E3EF7498129ECD0E610ED35407B06 中的**snapshot**文件夹放在本目录下或替换本目录下的该文件夹，即可下载已有的模型参数。
