@@ -86,7 +86,8 @@ if FLAGS.training:
 else:
   PARALLEL = 1
   MAX_AGENT_STEPS = 1e5
-  DEVICE = ['/cpu:0']
+  # DEVICE = ['/cpu:0']
+  DEVICE = ['/gpu:'+dev for dev in FLAGS.device.split(',')]
 
 LOG = FLAGS.log_path+FLAGS.map+'/'+FLAGS.net
 SNAPSHOT = FLAGS.snapshot_path+FLAGS.map+'/'+FLAGS.net
